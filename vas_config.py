@@ -9,7 +9,13 @@ import numpy as np
 import tyro
 from typing_extensions import Annotated
 
-from trl.trainer.utils import exact_div
+# The authors' TRL fork ships `exact_div(a, b, a_str, b_str, custom_error_message)`; env_prlhf's TRL 0.10.1 has `exact_div(a, b, custom_error_message)` -> "takes from 2 to 3 positional arguments but 5 were given"
+# (job 332752). Same behaviour, defined here so it does not depend on the installed TRL.
+def exact_div(a, b, a_str, b_str, custom_error_message=""):
+    q = a // b
+    if a != q * b:
+        raise ValueError(f"{custom_error_message}, inexact division: {a_str} = {a}, {b_str} = {b}, {a} / {b} = {a / b}")
+    return q
 
 from trl.core import flatten_dict
 from trl.import_utils import is_wandb_available
