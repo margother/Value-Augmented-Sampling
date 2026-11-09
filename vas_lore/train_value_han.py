@@ -95,7 +95,12 @@ def main():
         cfg = VASConfig(model_name=args.backbone, ref_model_name=args.policy_path, batch_size=args.batch_size, mini_batch_size=args.mini_batch_size,
                         gradient_accumulation_steps=args.batch_size // args.mini_batch_size, learning_rate=args.lr, lam=args.lam, seed=args.seed)
         model = AutoModelForCausalLMWithValueHead.from_pretrained(args.backbone, torch_dtype=torch.bfloat16)
-        model.pretrained_model = get_peft_model(model.pretrained_model, LoraConfig(r=args.lora_r, lora_alpha=args.lora_alpha, bias="none", task_type="CAUSAL_LM"))
+        # target_modules explicit -- peft's auto-inference (TRANSFORMERS_MODELS_TO_LORA_TARGET_MODULES_MAPPING)
+        # doesn't recognize Qwen3 (confirmed: ValueError "Please specify target_modules", job 341381/341382,
+        # personalllm's own Qwen3-0.6B value backbone -- see chat: "ok so for LoRe+VAS we need to use the
+        # Qwen0.6B too!"). q_proj/v_proj matches method_hyperparameters.py's own documented "LoRA target
+        # modules" row for LoRe+VAS and peft's own default for architectures it DOES recognize (Llama).
+        model.pretrained_model = get_peft_model(model.pretrained_model, LoraConfig(r=args.lora_r, lora_alpha=args.lora_alpha, bias="none", task_type="CAUSAL_LM", target_modules=["q_proj", "v_proj"]))
         model.is_peft_model = True
         torch.nn.init.zeros_(model.v_head.summary.weight)
         torch.nn.init.zeros_(model.v_head.summary.bias)
